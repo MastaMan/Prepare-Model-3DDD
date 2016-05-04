@@ -1,8 +1,98 @@
 /*
 	Prepare Model 3DDD
 	Author: MastaMan
+	Big Thanks: 
+				conradbenzin 
+				fossil
+				DroneN
+				3dmaxv
+				color_bleed
+				flash1706
+				Maketer
+				AzatHai
+				pogreblegik
+				kobzevgroup
+				Irren.com.ua
+				Nesquik123 
 	
-	Special for http://www.estudicread.com/
+	Special for 3ddd.ru
+	Link: http://3ddd.ru/forum/thread/show/skript_prepare_model_3ddd
+	
+	v.1.0.1
+		- BugFix: Destroy group when move in center scene
+	v.1.0.2
+		+ Added: Now able to add/delete more previews
+	v.1.0.3
+		* Small BugFixes
+		+ Added: Now add info.txt in archive
+	v.1.1.0
+		+ Added: Dimesions in statistic
+		+ Added: Options rollout
+		+ Added: Manual select winrar path
+	v.1.2.1
+		* All checkboxes moved to Step 3 
+		* Moved winrar path select option to Step 3 
+		* Renamed Step 3
+		+ Added: Box Trick in Step 2	
+		+ Added: Now all settings are savable
+		+ Added: Remember window position
+		+ Added: Automatically copy statistic text to clipboard
+		+ Added: Reset XForm and Box Trick status in statistic
+		- BugFix: Reset XForm bug
+	v.1.2.2
+		+ Added: Button copy in statistic
+		+ Added: Button in Step 5 for display statistic
+		+ Added: Option rename objects
+		+ Added: Option for add *material library (.mat)
+		+ Added: More info in rollout About
+		* Code optimization
+	v.1.2.3
+		* Replace spaces in model name to "_"
+		- BugFix: Set many times name for bitmaps in multimaterials	
+
+	1.3.1
+		* Fix typo
+		* Now all textures copy to "maps" directory
+		* Remove all old materials and presets before export models
+		+ Added: Support for IRay render 
+		+ Added: Option Remove Layers
+		+ Added: Tool Tips
+		+ Added: Corona Bitmap support
+		- BugFix: Position in Center Scene now works for all objects
+		- BugFix: Not create archive with Winrar x86
+	1.3.2
+		* Now *.fbx, *.obj, *.3ds copy to "export" directory
+		* Now previews copy to "preview" directory
+		* Now *.mtl copy to "matlib" directory
+		+ Added: Supprot 3DS format
+		+ Added: Success message
+	1.3.3
+		+ Added: Save Archive Path option in Step 3
+	1.3.4 
+		+ Added: Check cyrillic paths
+	1.3.5
+		+ Added: Allowed spaces in paths	
+	1.3.6
+		+ Added: Check cyrillic names in Step 1
+		- BugFix: Textures paths for instance bitmaps
+		- BugFix: Can't export FBX
+	1.3.7
+		* Small changed in Step 4 UI
+		- BugFix: Freezed UI in 3Ds Max 2016
+		- BugFix: Empty FBX file		
+	1.3.8
+		- BugFix: Empty FBX file again
+		- BugFix: Problem with relative paths of textures
+		+ Added: Display Error Log	
+	1.3.9
+		+ Added: Make Group feature in Step 2	
+	1.4.0
+		+ Added: Multiselect previews in Select Previews dialog
+		- BugFix: Display resolution when deleted all previews
+	1.4.1
+		- BugFix: Dublicated names in materials
+		- BugFix: Not rename same textures paths in different multi materials
+		- BugFix: Display default rener in Statistic after save model
 */
 
 try(closeRolloutFloater rPrepareModel)catch()
@@ -18,7 +108,6 @@ global rAbout
 
 
 global szModelName = ""
-global iKeepModelName = 2
 global szPreviewPath = #()
 global bModelPostfix = true
 global bSetMaterialNames = true
@@ -45,20 +134,16 @@ fn getMaxVersion =
 	v = maxVersion()
 	v = (v[1] / 1000) - 2
 	
-	case v of 
+	a = 2000 + v
+	
+	o = case v of 
 	(
 		11: #(2010,2011)
 		12: #(2010,2011,2012)
-		13: #(2010,2011,2012,2013)
-		14: #(2011,2012,2013,2014)
-		15: #(2012,2013,2014,2015)
-		16: #(2013,2014,2015,2016)
-		17: #(2014,2015,2016,2017)
-		18: #(2015,2016,2017,2018)
-		19: #(2016,2017,2018,2019)
-		20: #(2017,2018,2019,2020)
-		default: 2000 + v
+		default: #(a - 3, a - 2, a - 1, a)		
 	)
+	
+	return (for i in o collect i as string)
 )
 
 fn getRender =
@@ -111,21 +196,6 @@ fn getWinRar =
 	return undefined
 )
 
-fn getNum n =
-(
-	nn = n as string
-	p =	case nn.count of
-	(
-		1: "00"
-		2: "0"
-		default: ""
-	)
-	
-	return p + nn
-)
-
-fn round n = ((n * 100) as integer) / 100.0
-
 fn checkWinrar =
 (
 	if(doesFileExist szWinRarPath) do return true
@@ -156,6 +226,9 @@ fn isGroup s =
 	if(g[1] != undefined) do return g[1]	
 	return s
 )
+
+
+
 
 fn getDim s =
 (
@@ -188,7 +261,7 @@ fn showStatistic m title:"Statistic" width: 260 =
 	createDialog rStatistic width 295
 )
 
-fn polyCount s spaces: true =
+fn polyCount s =
 (	
 	iPoly = 0
 	
@@ -198,7 +271,7 @@ fn polyCount s spaces: true =
 	r = ""
 	ii = 1
 	
-	if(spaces == false) do return iPoly as string
+	sPoly = iPoly as string
 	
 	for i in sPoly.count to 1 by -1 do
 	(
@@ -263,8 +336,7 @@ rollout _STEP1 "STEP 1: Model Name"
 (	
 	group "Model Name"
 	(
-		radiobuttons rdoName "" labels: #("Keep model name", "New model name") columns: 1 align: #left default: 2
-		edittext edtModelName "" height: 25 text: "modelname"
+		edittext edtModelName "" height: 25 
 	)
 	
 	progressBar hr "" height: 3 offset:[0,15]
@@ -273,22 +345,6 @@ rollout _STEP1 "STEP 1: Model Name"
 	on _STEP1 rolledUp x do sliderStep 1 x
 	on btnNext pressed do sliderStep 2 true		
 
-	on rdoName changed x do
-	(
-		edtModelName.height = 25
-		if(x == 1) do 
-		(			
-			if(not isSelected()) do return rdoName.state = 2
-				
-			edtModelName.height = 0
-			btnNext.enabled = true	
-			
-			szModelName	= selection[1].name
-		)
-		
-		iKeepModelName = x
-	)
-	
 	on edtModelName changed x do
 	(
 		btnNext.enabled = false
@@ -361,11 +417,9 @@ rollout _STEP2 "STEP 2: Model Transform"
 	
 	group "3. Set Pivot"
 	(
-		button btnSetPivotBotton "Bottom" across: 5 tooltip: "Set pivot point in center and bottom of objects." align: #left 
-		label lblOr1 "or" offset: [0, 3]
-		button btnSetPivotCenter "Center" tooltip: "Set pivot point in center of objects." align: #center
-		label lblOr2 "or" offset: [0, 3]
-		button btnSetPivotTop "Top" tooltip: "Set pivot point in center and top of objects." align: #right 
+		button btnSetPivotBotton "Bottom" across: 3 tooltip: "Set pivot point in center and bottom of objects." align: #right offset: [15,0]
+		label lblOr "or" width: 10 offset: [0,3]
+		button btnSetPivotTop "Top" tooltip: "Set pivot point in center and top of objects." align: #left offset: [-15,0]
 	)
 	
 	group "4. Position"
@@ -437,11 +491,11 @@ rollout _STEP2 "STEP 2: Model Transform"
 	on btnGroup pressed do
 	(
 		if(not isSelected()) do return false
-		if(szModelName.count < 1 and iKeepModelName == 2) do return messageBox "Please do STEP 1" title: "Warning!"
+		if(szModelName.count < 1) do return messageBox "Please do STEP 1" title: "Warning!"
 			
 		ungroupRecursive selection
 			
-		group selection name:szModelName select:true		
+		group selection name:szModelName select:true
 	)
 	
 	on btnBoxTrick pressed do
@@ -488,13 +542,6 @@ rollout _STEP2 "STEP 2: Model Transform"
 		setPivot selection.max.z
 	)
 	
-	on btnSetPivotCenter pressed do
-	(
-		if(not isSelected()) do return false
-			
-		selection.pivot = selection.center
-	)
-		
 		
 	progressBar hr "" height: 3 offset:[0,15]
 	button btnPrev "<< Back" align: #left  across: 2
@@ -508,29 +555,29 @@ rollout _STEP3 "STEP 3: Basic Setup"
 (	
 	group "Files"
 	(
-		checkbox cbxAddPostfix "" checked: false align: #left tooltip: "Add render tag in file name for saved formats *.max, *.fbx, *.obj (ex. chair_vray.max)"
+		checkbox cbxAddPostfix "" checked: true align: #left tooltip: "Add render tag in file name for saved formats *.max, *.fbx, *.obj (ex. chair_vray.max)"
 	)
 	
 	group "Geometry"
 	(
-		--checkbox cbxRenameObjects "Rename objects" checked: true align: #left tooltip: "Rename objects to name specified in STEP 1."
+		checkbox cbxRenameObjects "Rename objects" checked: true align: #left tooltip: "Rename objects to name specified in STEP 1."
 		checkbox cbxLayer0 "Remove Layers" checked: true align: #left tooltip: "Remove all layers.\nSet default (0) layer for all objects."
 	)
 	
 	group "Materials"
 	(
 		checkbox cbxSetMaterialNames "Material Names Same as Model Name" checked: true tooltip: "Rename materials to name specified in STEP 1."
-		checkbox cbxTexturesStrip "Change Textures Paths" checked: true tooltip: "Set textures paths same as model name path."
+		checkbox cbxTexturesStrip "Strip Textures Paths" checked: true tooltip: "Remove textures paths, leave only filename (ex. maps/texturename.jpg).\n\nImportant!\nFor upload model to 3ddd.ru/3dsky.org please keep this option checked!"
 		checkbox cbxTexturesRename "Rename Textures as Model Name" checked: true tooltip: "Add model tag in textures file name specified in STEP 1."
-		checkbox cbxAddMatLib "Create Material Library (*.mat)" checked: false tooltip: "Add Material Library (*.mat) to archive."
+		checkbox cbxAddMatLib "Create Material Library (*.mat)" checked: true tooltip: "Add Material Library (*.mat) to archive."
 	)
-	/*	
+		
 	group "WinRar Path"
 	(
 		edittext edtWinRarPath "" height: 25 readOnly: true
 		button btnSelectPath "Select WinRar Path"
 	)
-	*/
+	
 	group "Save Model To"
 	(
 		edittext edtSaveToPath "" height: 25 readOnly: true
@@ -540,11 +587,11 @@ rollout _STEP3 "STEP 3: Basic Setup"
 	on cbxSetMaterialNames changed x do (bSetMaterialNames = x; useSettings "SETTINGS_MATERIAL_NAMES" x "w")
 	on cbxTexturesStrip changed x do (bTexturesStrip = x; useSettings "SETTING_STRIP_TEXTURE" x "w")
 	on cbxTexturesRename changed x do (bTexturesRename = x; useSettings "SETTING_RENAME_TEXTURE" x "w")
-	on cbxAddPostfix changed x do (bModelPostfix =  x; useSettings "SETTING_ADD_POSTFIX"  x "w")
-	--on cbxRenameObjects changed x do (bObjectsRename = x; useSettings "SETTING_RENAME_OBJECTS" x "w")
-	on cbxAddMatLib changed x do (bAddMatLib =  x; useSettings "SETTING_ADD_MATLIB"  x "w")
+	on cbxAddPostfix changed x do (bModelPostfix = x; useSettings "SETTING_ADD_POSTFIX" x "w")
+	on cbxRenameObjects changed x do (bObjectsRename = x; useSettings "SETTING_RENAME_OBJECTS" x "w")
+	on cbxAddMatLib changed x do (bAddMatLib = x; useSettings "SETTING_ADD_MATLIB" x "w")
 	on cbxLayer0 changed x do (bLayer0 = x; useSettings "SETTING_REMOVE_LAYERS" x "w")
-	/*	
+		
 	on btnSelectPath pressed do
 	(
 		f = getOpenFileName caption: "Select WinRar Path" types:"winrar.exe|winrar.exe"
@@ -556,7 +603,7 @@ rollout _STEP3 "STEP 3: Basic Setup"
 						
 			useSettings "WINRAR" f "w"
 		)
-	)*/
+	)
 	
 	on btnSaveToPath pressed do
 	(
@@ -580,7 +627,7 @@ rollout _STEP3 "STEP 3: Basic Setup"
 		
 		if(doesFileExist w) do szWinRarPath = w
 			
-		--edtWinRarPath.text = szWinRarPath
+		edtWinRarPath.text = szWinRarPath
 				
 		n = useSettings "SAVETO" "string" "r"
 		r = FilterString n szGoodChars
@@ -601,13 +648,13 @@ rollout _STEP3 "STEP 3: Basic Setup"
 		cbxTexturesRename.checked = useSettings "SETTING_RENAME_TEXTURE" "bool" "r"
 		bTexturesRename = cbxTexturesRename.checked;
 		
-		cbxAddPostfix.checked = useSettings "SETTING_ADD_POSTFIX" "bool_not" "r"
+		cbxAddPostfix.checked = useSettings "SETTING_ADD_POSTFIX" "bool" "r"
 		bModelPostfix = cbxAddPostfix.checked; 
 		
-		--cbxRenameObjects.checked = useSettings "SETTING_RENAME_OBJECTS" "bool" "r"
-		--bObjectsRename = cbxRenameObjects.checked; 
+		cbxRenameObjects.checked = useSettings "SETTING_RENAME_OBJECTS" "bool" "r"
+		bObjectsRename = cbxRenameObjects.checked; 
 		
-		cbxAddMatLib.checked = useSettings "SETTING_ADD_MATLIB" "bool_not" "r"
+		cbxAddMatLib.checked = useSettings "SETTING_ADD_MATLIB" "bool" "r"
 		bAddMatLib = cbxAddMatLib.checked; 
 		
 		cbxLayer0.checked = useSettings "SETTING_REMOVE_LAYERS" "bool" "r"
@@ -620,16 +667,16 @@ rollout _STEP3 "STEP 3: Basic Setup"
 	on btnPrev pressed do sliderStep 2 true	
 	on _STEP3 rolledUp x do 
 	(	
-		--if(szModelName.count > 0) do cbxRenameObjects.caption = "Rename objects to \"" + szModelName + "\""
+		if(szModelName.count > 0) do cbxRenameObjects.caption = "Rename objects to \"" + szModelName + "\""
 		
 		sliderStep 3 x
 	)
 	on btnNext pressed do sliderStep 4 true
 )
 
-rollout _STEP4 "STEP 4: Pictures" 
+rollout _STEP4 "STEP 4: Preview" 
 (
-	group "Pictures"
+	group "Preview"
 	(
 		bitmap btmPreview
 		label lblDimensions ""
@@ -638,7 +685,7 @@ rollout _STEP4 "STEP 4: Pictures"
 		
 	)
 
-	button btnPreviewAdd "Add New Picture" offset: [0, 12]
+	button btnPreviewAdd "Add New Preview" offset: [0, 12]
 		
 	fn showPreview f =
 	(		
@@ -671,7 +718,7 @@ rollout _STEP4 "STEP 4: Pictures"
 		f = #()
 		
 		imageDialog = dotNetObject "System.Windows.Forms.OpenFileDialog" 
-		imageDialog.title = "Select Pictures"
+		imageDialog.title = "Select Preview"
 		imageDialog.Multiselect = true
 		imageDialog.Filter = "JPG (*.jpg)|*.jpg|PNG (*.png)|*.png|BMP (*.bmp)|*bmp"
 		imageDialog.FilterIndex = 1
@@ -756,8 +803,8 @@ rollout _STEP5 "STEP 5: Create Archive"
 		label lblMax "MAX: " across: 5 align: #left
 		dropdownlist ddlMax "" align: #left width: 60 offset: [-20, -4]
 		
-		checkbox cbxFBX "FBX" checked: false align: #left 
-		checkbox cbxOBJ "OBJ" checked: false align: #left
+		checkbox cbxFBX "FBX" checked: true align: #left 
+		checkbox cbxOBJ "OBJ" checked: true align: #left
 		checkbox cbx3DS "3DS" checked: false align: #left
 	)
 	
@@ -769,23 +816,6 @@ rollout _STEP5 "STEP 5: Create Archive"
 	timer tmrExport "" interval: 1000 active: false	
 	
 	global iCountExport = 1
-	
-	fn getCSV f sel:selection =
-	(
-		if(not isSelected()) do return false
-		p = polyCount sel spaces: false
-		v = ddlMax.selected
-		modelParts = for i in sel where isGroupHead i == false collect i
-		m = modelParts.count as string	
-		r = getRender()
-		u = lblUnitsStat.caption
-		d = (getDim sel)
-		s = (round ((getFileSize f) / 1048576.0))  as string
-		
-		m = "\"" + v + "\"," + "\"" + u + "\"," + "\"" + d + "\"," + "\"" + p + "\"," + "\"" + m + "\"," + "\"" + r[2] + "\"," + "\"" + s + "\""
-		
-		return m
-	)
 	
 		
 	fn displayStatistic sel:selection displ:true =
@@ -802,14 +832,14 @@ rollout _STEP5 "STEP 5: Create Archive"
 		for i in sel where getUserProp i "boxtrick" != undefined do bBoxTrick = "Yes"
 		for i in sel where getUserProp i "xform" != undefined do bResetXForm = "Yes"
 		if(szModelName.count < 1) do szModelName = "No"
-				
+		
 		modelParts = for i in sel where isGroupHead i == false collect i
 		
 		r = getRender()
 		
 		m = "Name: \t\t" + szModelName
 		m += "\nVersion: \t\t" + v
-		m += "\nPictures: \t\t" + lblPreviewStat.caption
+		m += "\nPreview: \t\t" + lblPreviewStat.caption
 		m += "\nUnits: \t\t" + lblUnitsStat.caption
 		m += "\nDimension: \t" + (getDim sel)
 		m += "\nPolys: \t\t" + sPoly
@@ -835,22 +865,14 @@ rollout _STEP5 "STEP 5: Create Archive"
 	(
 		oldMtl = #()
 		oldTex = #()
-		oldTexPaths = #()
 		errorTex = #()
 		toRename = #()
-		iCnt = 1
-		iCnt2 = 1
 		
 		try
 		(		
 			for i in selection where i.material != undefined and findItem oldMtl i.material == 0 do
 			(			
-				if(bSetMaterialNames and findString (i.material.name) szModelName == undefined) do 
-				(
-					i.material.name = szModelName + "_" + (getNum iCnt)
-					
-					if(classOf i.material == Multimaterial) do for ii in 1 to i.material.count where i.material[ii] != undefined do i.material[ii].name = i.material.name + "_" + (getNum ii)
-				)
+				if(bSetMaterialNames and findString (i.material.name) szModelName == undefined) do i.material.name = szModelName + "_" + i.material.name
 				
 				append oldMtl i.material
 								
@@ -863,25 +885,12 @@ rollout _STEP5 "STEP 5: Create Archive"
 										
 					if(bTexturesRename and findItem oldTex b == 0) do 
 					(
-						n = szModelName + "_" + (getNum iCnt2) + (getFilenameType f)
+						n = szModelName + "_" + n					
 						append oldTex b
-												
-						if(doesFileExist f) then
-						(
-							ep = findItem oldTexPaths b.filename
-							
-							if(ep != 0) then n = toRename[ep][4]
-							
-							append toRename #(b, (p + n), (szMaps + n), n, f) 
 						
-							if(ep == 0) do iCnt2 += 1
-							append oldTexPaths b.filename
-						)	
-						else append errorTex #(b.filename, i.name)								
-					)					
+						if(doesFileExist f) then append toRename #(b, (p + n), (szMaps + n), n, f) else append errorTex #(b.filename, i.name)								
+					)									
 				)
-				
-				iCnt += 1
 			)
 		)catch()
 		
@@ -892,7 +901,7 @@ rollout _STEP5 "STEP 5: Create Archive"
 			copyFile t[5] t[3]
 			
 			t[1].filename = t[2]
-			if(bTexturesStrip) do t[1].filename = szMaps + t[4]
+			if(bTexturesStrip) do t[1].filename = "maps\\" + t[4]
 		)
 
 		return errorTex
@@ -925,11 +934,11 @@ rollout _STEP5 "STEP 5: Create Archive"
 	on _STEP5 open do
 	(
 		v = getMaxVersion()
-		ddlMax.items = for i in v collect i as string
+		ddlMax.items = v
 		lblModelVersionStat.caption = ddlMax.items[1]
 		
-		cbxFBX.checked = useSettings "FORMAT_FBX" "bool_not" "r"
-		cbxOBJ.checked = useSettings "FORMAT_OBJ" "bool_not" "r"
+		cbxFBX.checked = useSettings "FORMAT_FBX" "bool" "r"
+		cbxOBJ.checked = useSettings "FORMAT_OBJ" "bool" "r"
 		cbx3DS.checked = useSettings "FORMAT_3DS" "bool_not" "r"
 		
 		x = useSettings "FORMAT_MAX" "int" "r"
@@ -958,34 +967,32 @@ rollout _STEP5 "STEP 5: Create Archive"
 			
 		v = ddlMax.selected
 		r = getRender()
-		p = if(bModelPostfix) then ("_" + r[1]) else ""
+		p = if(bModelPostfix) then r[1] else ""
 			
 		szDir = szSaveToPath + szModelName + "\\"
 		szMaps = szDir + "maps\\"
 		szExportDir = szDir + "export\\"
 		szMtl = szDir + "matlib\\"
-		szPreview = szDir + "pictures\\"
-		szModels = szDir + "models\\"
+		szPreview = szDir + "preview\\"
 			
-		szScene = (szModels + szModelName + p + ".max")
-		szExport[1] = (szExportDir + szModelName + p + ".obj")		
-		szExport[2] = (szExportDir + szModelName + p + ".3ds")
-		szExport[3] = (szExportDir + szModelName + p + ".fbx")
+		szScene = (szDir + szModelName + "_" + v + "_" + p + ".max")
+		szExport[1] = (szExportDir + szModelName + "_" +  p + ".obj")		
+		szExport[2] = (szExportDir + szModelName + "_" +  p + ".3ds")
+		szExport[3] = (szExportDir + szModelName + "_" +  p + ".fbx")
 			
 		szZip = szSaveToPath + "Please wait, pack files.bat"
-		szInfo = szDir + "info.csv"
+		szInfo = szDir + "info.txt"
 		szMatLib = (szMtl + szModelName + "_" +  p + ".mat")
 		
 		makeDir szDir	
 		makeDir szMaps	
-		if(cbxFBX.checked or cbxOBJ.checked or cbx3DS.checked) do makeDir szExportDir	
+		makeDir szExportDir	
 		makeDir szPreview	
-		if(bAddMatLib == true) do makeDir szMtl	
-		makeDir szModels	
+		makeDir szMtl	
 			
 		
 		-- Rename Models			
-		if(iKeepModelName == 2) do (for i in selection do i.name = uniqueName (szModelName + "_"))
+		if(bObjectsRename) do (for i in selection do i.name = uniqueName (szModelName + "_"))
 		
 		-- Layer
 		if(bLayer0) do
@@ -1015,7 +1022,7 @@ rollout _STEP5 "STEP 5: Create Archive"
 			return false
 		)
 	
-		if(bAddMatLib == true) do saveMtlLib szMatLib
+		saveMtlLib szMatLib
 		
 		-- Preview
 		iPreview = 0
@@ -1025,7 +1032,7 @@ rollout _STEP5 "STEP 5: Create Archive"
 			if(doesFileExist i) do 
 			(
 				iPreview += 1
-				copyFile i (szPreview + "picture" + iPreview as string + p)
+				copyFile i (szPreview + "preview" + iPreview as string + p)
 			)
 		)
 		
@@ -1043,12 +1050,14 @@ rollout _STEP5 "STEP 5: Create Archive"
 		
 		select objects
 			
-		-- CSV
-		
-		l = getCSV szScene				
+		-- Info		
+		m = displayStatistic sel:objects displ:false
+		l = stripTab m				
 		writeFile szInfo l
 		
 		setClipBoardText l
+		
+		displayStatistic sel:objects displ:true
 		
 		tmrExport.active = true
 	)
@@ -1066,17 +1075,23 @@ rollout _STEP5 "STEP 5: Create Archive"
 		iCountExport += 1
 		
 		if(iCountExport >= 4) do 
-		(																								
+		(																			
+			szLaunch = ("echo off\ncls\necho Create archive, please wait..\n\"" + szWinRarPath + "\" m -r -ibck -ep1 -m5 \"" + szSaveToPath + szModelName + ".rar\" \"" + szDir + "\"\ncls\nrd \"" + szDir + "\" /q /s\ncls\ndel \"" + szZip +"\" /q\ncls")
+					
+			writeFile szZip szLaunch
+						
+			shellLaunch szZip ""
+						
 			resetMaxFile #noPrompt
 			loadMaxFile fileToLoad useFileUnits: true quiet:true
 								
+			shellLaunch szSaveToPath ""	
+						
 			iCountExport = 1
-			tmrExport.active = false							
+			tmrExport.active = false
 			
-			successMessage = "Model " + szModelName + " prepared!\n\nPress OK for open directory with model." 
-			q = queryBox successMessage beep: false title: "Success!"
-			
-			if(q) do shellLaunch (szSaveToPath + szModelName + "\\") ""	
+			/*successMessage = "Model prepared!\nNow creating archive \"" + szModelName + ".rar.\"\n\nPress OK for open directory with archive." 
+			messageBox successMessage beep: false title: "Success!"	*/					
 		)
 	)
 )
@@ -1093,8 +1108,8 @@ rollout rAbout "About"
 	label lbl6 "" 
 
 		
-	hyperLink href2 "Special for Cread" address: "http://www.estudicread.com/" align: #center hoverColor: c visitedColor: c
-	label lbl7 "GNU GPL v3.0"
+	hyperLink href2 "Script Home" address: "http://3ddd.ru/forum/thread/show/skript_prepare_model_3ddd/" align: #center hoverColor: c visitedColor: c
+	hyperLink href "http://3ddd.ru" address: "http://3ddd.ru" align: #center hoverColor: c visitedColor: c
 )
 
 addRollout _STEP1 rPrepareModel rolledUp:false 
